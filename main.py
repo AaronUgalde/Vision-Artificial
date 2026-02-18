@@ -10,21 +10,24 @@ from Point import Point
 from Cluster import Cluster
 from CentroidClassifier import CentroidClassifier
 import dist
+import inspect
 
 BUNDARIES = [(-100, 100), (-100, 100)]
 
+
 def list_distance_functions():
-    """Devuelve una lista de nombres de funciones de distancia disponibles en dist."""
     names = []
     for attr in dir(dist):
         if attr.startswith("_"):
             continue
         obj = getattr(dist, attr)
-        if callable(obj):
+
+        if inspect.isfunction(obj) and obj.__module__ == dist.__name__:
             names.append(attr)
-    # Prioriza euclidean si existe
+
     names_sorted = sorted(names, key=lambda x: (0 if x == "euclidean" else 1, x))
     return names_sorted
+
 
 def get_distance_wrapper(name):
     fn = getattr(dist, name)
