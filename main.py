@@ -11,6 +11,7 @@ from Cluster import Cluster
 from CentroidClassifier import CentroidClassifier
 import dist
 import inspect
+from typing import List
 
 BUNDARIES = [(-100, 100), (-100, 100)]
 
@@ -30,12 +31,7 @@ def list_distance_functions():
 
 
 def get_distance_wrapper(name):
-    fn = getattr(dist, name)
-
-    def wrapper(p1 : Point, p2 : Point):
-        return fn(p1, p2)
-
-    return wrapper
+    return getattr(dist, name)
 
 def read_representatives_from_csv(path):
     reps = defaultdict(list)
@@ -193,7 +189,7 @@ def main():
         clf.bundaries = BUNDARIES
         clf.fit_from_clusters(clusters.values())
         pred = clf.predict_point(new_point)
-        label = pred[0] if pred else None
+        label = pred if pred else None
         print(f"Predicción para {tuple(coords)} -> {label}")
 
         # graficar todo

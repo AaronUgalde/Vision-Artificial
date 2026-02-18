@@ -6,7 +6,7 @@ import json
 
 class CentroidClassifier:
     def __init__(self,
-                 distance: Callable[[Point, Point], float] = euclidean):
+                 distance: Callable[[Point, Point, List[Point]], float] = euclidean):
         self.distance = distance
         self.clusters: List[Cluster] = []
         self.bundaries: List[Tuple] = []
@@ -45,7 +45,7 @@ class CentroidClassifier:
         best_label = None
         best_dist = None
         for c in self.clusters:
-            d = self.distance(p, c.centroid)
+            d = self.distance(p, c.centroid, c.representatives)
             if (best_dist is None) or (d < best_dist):
                 best_dist = d
                 best_label = c.label
