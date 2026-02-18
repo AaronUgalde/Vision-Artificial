@@ -152,7 +152,7 @@ def main():
         print("\nFunciones de distancia disponibles:")
         for i, name in enumerate(dist_names, start=1):
             print(f"  {i}. {name}")
-        choice = input("Elige una función de distancia (número o nombre) [enter para 'euclidean']: ").strip()
+        choice = input("Elige una función de distancia [enter para 'euclidean']: ").strip()
         if not choice:
             chosen_name = "euclidean" if "euclidean" in dist_names else dist_names[0]
         else:
