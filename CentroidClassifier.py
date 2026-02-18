@@ -9,6 +9,13 @@ class CentroidClassifier:
                  distance: Callable[[Point, Point], float] = euclidean):
         self.distance = distance
         self.clusters: List[Cluster] = []
+        self.bundaries: List[Tuple] = []
+
+    def check_bundaries(self, p : Point):
+        for mn, mx in self.bundaries:
+            for coord in p:
+                if coord < mn or coord > mx:
+                    raise ValueError("El punto debe estar dentro de los limites establecidos")
 
     def fit_from_clusters(self, clusters: Sequence[Cluster]) -> None:
         # valida y asegura centroides calculados
@@ -32,6 +39,8 @@ class CentroidClassifier:
         # validar dimensión
         if len(p) != len(self.clusters[0].centroid):
             raise ValueError("Dimensión del punto no coincide con centroides")
+        
+        self.check_bundaries(p)
         # calcular distancias
         best_label = None
         best_dist = None
