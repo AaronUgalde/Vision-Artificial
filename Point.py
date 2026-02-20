@@ -1,5 +1,6 @@
 from dataclasses import field, dataclass
 from typing import Tuple, Iterable, List
+import numpy as np
 
 @dataclass(frozen=True)
 class Point:
@@ -16,17 +17,13 @@ class Point:
         return iter(self.coords)
 
     def __add__(self, other: "Point") -> "Point":
-        if len(self) != len(other):
-            raise ValueError("Dimensiones diferentes en suma de puntos")
-        return Point(tuple(a + b for a, b in zip(self.coords, other.coords)))
+        return Point.from_iterable(np.array(self.coords) + np.array(other.coords))
 
     def __sub__(self, other: "Point") -> "Point":
-        if len(self) != len(other):
-            raise ValueError("Dimensiones diferentes en resta de puntos")
-        return Point(tuple(a - b for a, b in zip(self.coords, other.coords)))
+        return Point.from_iterable(np.array(self.coords) - np.array(other.coords))
 
     def scale(self, scalar: float) -> "Point":
-        return Point(tuple(scalar * a for a in self.coords))
+        return Point.from_iterable(np.array(self.coords) * scalar)
 
     def to_list(self) -> List[float]:
         return list(self.coords)

@@ -81,7 +81,7 @@ def plot_clusters_and_point(clusters, centroids, new_point=None, new_label=None,
     """
 
     labels = [label for label in clusters.keys()]
-    cmap = cm.get_cmap("tab10")
+    cmap = plt.get_cmap("tab10")
     color_map = {lab: cmap(i % 10) for i, lab in enumerate(labels)}
 
     plt.figure(figsize=(8, 6))
