@@ -1,39 +1,29 @@
 import numpy as np
-from typing import List
-from Point import Point
-from utilis import calculate_covariance_matrix
 
 
-def _validate_dimensions(a: Point, b: Point) -> None:
-    if len(a) != len(b):
-        raise ValueError("Dimensiones diferentes al calcular distancia")
+def euclidean(a: np.ndarray, b: np.ndarray, points: np.ndarray) -> float:
+    return float(np.linalg.norm(a - b))
 
 
-def euclidean(a: Point, b: Point, points: List[Point]) -> float:
-    _validate_dimensions(a, b)
-    return float(np.linalg.norm(np.array(a.coords) - np.array(b.coords)))
+def manhattan(a: np.ndarray, b: np.ndarray, points: np.ndarray) -> float:
+    return float(np.sum(np.abs(a - b)))
 
 
-def manhattan(a: Point, b: Point, points: List[Point]) -> float:
-    _validate_dimensions(a, b)
-    return float(np.sum(np.abs(np.array(a.coords) - np.array(b.coords))))
-
-
-def mahalanobis_distance_matrix(x: Point, mu: Point, points: List[Point]) -> float:
+def mahalanobis_distance_matrix(x: np.ndarray, mu: np.ndarray, points: np.ndarray) -> float:
     """
     d = sqrt((x - mu)^T * Sigma^-1 * (x - mu))
     """
-    _validate_dimensions(x, mu)
-    if not points:
+    if points is None or len(points) == 0:
         raise ValueError("Se requieren puntos de referencia para Mahalanobis")
 
-    cov_matrix = calculate_covariance_matrix(points)
-    diff = np.array(x.coords) - np.array(mu.coords)
+    ddof = 1 if len(points) > 1 else 0
+    cov = np.cov(points, rowvar=False, ddof=ddof)
+    cov = np.atleast_2d(cov)
 
     try:
-        cov_inv = np.linalg.inv(cov_matrix._data)
+        cov_inv = np.linalg.inv(cov)
     except np.linalg.LinAlgError:
-        cov_inv = np.linalg.pinv(cov_matrix._data)
+        cov_inv = np.linalg.pinv(cov)
 
-    distance_sq = diff @ cov_inv @ diff
-    return float(np.sqrt(max(distance_sq, 0.0)))
+    diff = x - mu
+    return float(np.sqrt(max(diff @ cov_inv @ diff, 0.0)))
