@@ -7,6 +7,7 @@ import numpy as np
 
 from Cluster import Cluster
 from CentroidClassifier import CentroidClassifier
+from random_csv import generar_csv_clusters_por_clase
 import dist
 
 BOUNDARIES = np.array([[-100, 100], [-100, 100]], dtype=float)  # shape (D, 2)
@@ -75,10 +76,71 @@ def plot_clusters_and_point(clusters, new_point=None, new_label=None, title_suff
     plt.tight_layout()
     plt.show()
 
+def _pedir_int(msg: str, min_val: int = 1) -> int:
+    while True:
+        try:
+            v = int(input(msg).strip())
+            if v < min_val:
+                print(f"Debe ser >= {min_val}.")
+                continue
+            return v
+        except ValueError:
+            print("Ingresa un entero válido.")
+
+def _parsear_par(s: str) -> tuple[float, float]:
+    partes = [p.strip() for p in s.split(",") if p.strip() != ""]
+    if len(partes) == 1:
+        v = float(partes[0])
+        return (v, v)
+    if len(partes) == 2:
+        return (float(partes[0]), float(partes[1]))
+    raise ValueError("Formato inválido. Usa 'v' o 'x,y'.")
+
+def _pedir_par(msg: str) -> tuple[float, float]:
+    while True:
+        try:
+            return _parsear_par(input(msg).strip())
+        except ValueError as e:
+            print(e)
+
+def _pedir_dispersion(msg: str) -> tuple[float, float]:
+    while True:
+        try:
+            dx, dy = _parsear_par(input(msg).strip())
+            if dx <= 0 or dy <= 0:
+                print("La dispersión debe ser > 0.")
+                continue
+            return dx, dy
+        except ValueError as e:
+            print(e)
 
 def main():
-    print("Demo interactivo CentroidClassifier\n")
-    path = input("Ruta al CSV de representantes [enter para 'reps.csv']: ").strip() or "reps.csv"
+    print("\nDemo interactivo CentroidClassifier\n")
+    path = "data_info/" + (input("Ruta al CSV de representantes [enter para 'reps.csv']: ").strip() or "reps.csv")
+
+    if bool(input("\n¿Actualizar datos? [s/N]: ").strip().lower() in ("s", "si", "y", "yes")):
+        num_clases = _pedir_int("\n¿Cuántas clases quieres?: ", min_val=1)
+        centros_por_clase = []
+        reps_por_clase = []
+        disp_por_clase = []
+
+        for i in range(num_clases):
+            cx, cy = _pedir_par(f"\nClase {i}: Centro: ")
+            reps = _pedir_int(f"Clase {i}: ¿Cuántos representantes?: ", min_val=1)
+            dx, dy = _pedir_dispersion(f"Clase {i}: Dispersión: ")
+
+            centros_por_clase.append((cx, cy))
+            reps_por_clase.append(reps)
+            disp_por_clase.append((dx, dy))
+
+        generar_csv_clusters_por_clase(
+            centros_por_clase=centros_por_clase,
+            reps_por_clase=reps_por_clase,
+            disp_por_clase=disp_por_clase,
+            archivo_csv=path,
+        )
+
+        print(f"\n{path} actualizado con {num_clases} clases.")
 
     clusters = compute_clusters_from_reps(read_representatives_from_csv(path))
     dist_names = list_distance_functions()
@@ -87,24 +149,25 @@ def main():
         # Calcular/mostrar centroides
         for c in clusters.values():
             c.compute_centroid()
-        print("Centroides calculados:")
+        print("\n-------------------------------------------\n\nCentroides calculados:")
         for c in clusters.values():
             print(f"  {c.label} -> {c.centroid}")
 
         # Elegir función de distancia
-        print("\nFunciones de distancia disponibles:")
+        print("\n-------------------------------------------\n\nFunciones de distancia disponibles:")
         for i, name in enumerate(dist_names, start=1):
             print(f"  {i}. {name}")
-        choice = input("Elige una función de distancia [enter para 'euclidean']: ").strip()
+        choice = input("\nElige una función de distancia [enter para 'euclidean']: ").strip()
         if not choice:
             chosen_name = "euclidean" if "euclidean" in dist_names else dist_names[0]
         else:
             idx = int(choice) - 1
             chosen_name = dist_names[idx] if 0 <= idx < len(dist_names) else dist_names[0]
-        print(f"Usando distancia: {chosen_name}")
+
+        print(f"\n>>>>>> Usando distancia: {chosen_name}")
 
         # Leer punto nuevo
-        raw = input("Introduce el nuevo punto (formato: x,y) o 'q' para salir: ").strip()
+        raw = input("\nIntroduce el nuevo punto (formato: x,y) o 'q' para salir: ").strip()
         if raw.lower() in ("q", "quit", "salir", "exit"):
             print("Saliendo.")
             break
@@ -123,13 +186,29 @@ def main():
         clf.boundaries = BOUNDARIES
         clf.fit_from_clusters(clusters.values())
         label = clf.predict_point(new_point)
+
         print(f"Predicción para {coords} -> {label}")
+
+        if chosen_name == "probability_gaussian":
+            pdfs = np.array([
+                dist.probability_gaussian(new_point, c.centroid, np.array(c.representatives))
+                for c in clf.clusters
+            ], dtype=float)
+
+            s = pdfs.sum()
+            if s == 0 or not np.isfinite(s):
+                print("No se pudieron normalizar probabilidades (sum=0 o no finita).")
+            else:
+                probs = pdfs / s
+                print("\nProbabilidades normalizadas:")
+                for c, p in sorted(zip(clf.clusters, probs), key=lambda t: t[1], reverse=True):
+                    print(f"  Clase {c.label}: {p*100:.2f}%")
 
         plot_clusters_and_point(clusters, new_point=new_point, new_label=label, title_suffix=f"(dist: {chosen_name})")
 
         clusters[label].add_representative(new_point)
 
-        if input("¿Clasificar otro punto? [s/N]: ").strip().lower() not in ("s", "si", "y", "yes"):
+        if input("\n¿Clasificar otro punto? [s/N]: ").strip().lower() not in ("s", "si", "y", "yes"):
             print("Fin.")
             break
 

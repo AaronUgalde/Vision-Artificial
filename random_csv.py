@@ -1,58 +1,52 @@
 import csv
 import random
+from typing import List, Tuple
 
-def generar_csv_clusters(
-    max_valor,
-    dimensiones,
-    num_puntos,
-    num_clusters,
-    nombre_archivo="clusters.csv",
-    dispersion=0.05
-):
+
+def _generar_puntos_cluster(
+    centro_x: float,
+    centro_y: float,
+    n: int,
+    disp_x: float,
+    disp_y: float
+) -> List[Tuple[float, float]]:
+    puntos = []
+    for _ in range(n):
+        x = random.gauss(centro_x, disp_x)
+        y = random.gauss(centro_y, disp_y)
+        puntos.append((x, y))
+    return puntos
+
+
+def generar_csv_clusters_por_clase(
+    centros_por_clase: List[Tuple[float, float]],
+    reps_por_clase: List[int],
+    disp_por_clase: List[Tuple[float, float]],
+    archivo_csv: str = "reps.csv",
+    seed: int | None = None,
+) -> None:
     """
-    Genera un CSV con estructura: label, x1, x2, ..., xn
-    Cada label representa la clase del cluster (cluster_1, cluster_2, ...)
-
-    :param max_valor: valor máximo de las coordenadas
-    :param dimensiones: número de dimensiones
-    :param num_puntos: número total de puntos
-    :param num_clusters: número de clusters
-    :param nombre_archivo: nombre del archivo CSV
-    :param dispersion: controla qué tan dispersos están los puntos respecto al centro
+    Genera un CSV con columnas: label,x,y.
+    - centros_por_clase: lista (cx, cy) por clase.
+    - reps_por_clase: lista con # representantes por clase.
+    - disp_por_clase: lista (dx, dy) por clase.
     """
+    if seed is not None:
+        random.seed(seed)
 
-    if num_clusters > num_puntos:
-        raise ValueError("No puede haber más clusters que puntos")
+    k = len(centros_por_clase)
+    if len(reps_por_clase) != k or len(disp_por_clase) != k:
+        raise ValueError("centros_por_clase, reps_por_clase y disp_por_clase deben tener el mismo largo.")
 
-    # Crear centros aleatorios
-    centros = [
-        [random.uniform(0, max_valor) for _ in range(dimensiones)]
-        for _ in range(num_clusters)
-    ]
+    with open(archivo_csv, mode="w", newline="") as file:
+        writer = csv.writer(file)
+        writer.writerow(["label", "x", "y"])
 
-    # Distribuir puntos equitativamente
-    puntos_por_cluster = num_puntos // num_clusters
-    resto = num_puntos % num_clusters
+        for label in range(k):
+            cx, cy = centros_por_clase[label]
+            n = reps_por_clase[label]
+            dx, dy = disp_por_clase[label]
 
-    with open(nombre_archivo, mode="w", newline="") as archivo:
-        writer = csv.writer(archivo)
-
-        header = ["label"] + [f"x{i+1}" for i in range(dimensiones)]
-        writer.writerow(header)
-
-        for i in range(num_clusters):
-            cantidad = puntos_por_cluster + (1 if i < resto else 0)
-
-            for j in range(1, cantidad + 1):
-                label = f"cluster_{i+1}"
-
-                coordenadas = [
-                    random.gauss(centros[i][d], max_valor * dispersion)
-                    for d in range(dimensiones)
-                ]
-
-                writer.writerow([label] + coordenadas)
-
-    print(f"Archivo '{nombre_archivo}' generado correctamente.")
-
-generar_csv_clusters(100, 2, 100, 6, "reps.csv")
+            puntos = _generar_puntos_cluster(cx, cy, n, dx, dy)
+            for (x, y) in puntos:
+                writer.writerow([label, x, y])
