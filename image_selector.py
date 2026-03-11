@@ -122,14 +122,64 @@ def select_rectangles(image_path):
     plt.show()
     return rectangles
 
+def get_rgb_at(img, x, y):
+    """
+    Regresa (r,g,b) en 0-255 (int) para el pixel en (x,y).
+    Soporta RGB o RGBA y valores float (0-1) o uint8 (0-255).
+    """
+    h, w = img.shape[0], img.shape[1]
 
-def generate_points(rect, n_points):
+    # Clamp por si acaso
+    x = max(0, min(int(x), w - 1))
+    y = max(0, min(int(y), h - 1))
+
+    px = img[y, x]  # (y, x) !
+
+    # Si viene grayscale (H,W), conviértelo a "RGB"
+    if np.isscalar(px) or (hasattr(px, "shape") and px.shape == ()):
+        v = float(px)
+        if v <= 1.0:
+            v = int(round(v * 255))
+        else:
+            v = int(round(v))
+        return (v, v, v)
+
+    # Si viene RGB/RGBA
+    r, g, b = px[:3]
+
+    # Normaliza a 0-255 int
+    if np.issubdtype(img.dtype, np.floating):
+        r = int(round(float(r) * 255))
+        g = int(round(float(g) * 255))
+        b = int(round(float(b) * 255))
+    else:
+        r = int(r); g = int(g); b = int(b)
+
+    return (r, g, b)
+
+def generate_points(rect, n_points, img):
+    """
+    Devuelve una lista de tuplas (x, y, r, g, b).
+    """
     x1, y1, x2, y2 = rect
     points = []
 
+    # Asegura límites válidos (y que randint no truene si x1==x2, etc.)
+    xa, xb = sorted([int(x1), int(x2)])
+    ya, yb = sorted([int(y1), int(y2)])
+
+    h, w = img.shape[0], img.shape[1]
+    xa = max(0, min(xa, w - 1))
+    xb = max(0, min(xb, w - 1))
+    ya = max(0, min(ya, h - 1))
+    yb = max(0, min(yb, h - 1))
+
     for _ in range(n_points):
-        x = random.randint(x1, x2)
-        y = random.randint(y1, y2)
-        points.append(np.array([float(x), float(y)]))
+        x = random.randint(xa, xb)
+        y = random.randint(ya, yb)
+        r, g, b = get_rgb_at(img, x, y)
+        points.append((x, y, r, g, b))
+
+        print(points)
 
     return points

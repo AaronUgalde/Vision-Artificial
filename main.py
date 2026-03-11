@@ -8,9 +8,11 @@ from Cluster            import Cluster
 from collections        import defaultdict
 from CentroidClassifier import CentroidClassifier
 from random_csv         import generar_csv_clusters_por_clase
-from image_selector     import select_rectangles, generate_points
+from image_selector     import get_rgb_at, select_rectangles, generate_points
 
 BOUNDARIES = np.array([[-100, 100], [-100, 100]], dtype=float)  # shape (D, 2)
+IMAGE_BOUNDS = np.array([[-1, 257], [-1, 257], [-1, 257]], dtype=float)  # shape (D, 2)
+
 
 def list_distance_functions():
     names = [
@@ -24,10 +26,11 @@ def list_distance_functions():
 def classes_by_image():
     path = "data_info/img/" + (input("Ruta de la imagen [enter para 'beach.jsp']: ").strip() or "beach.jpg")
     rects = select_rectangles(path)
-
+    
     if not rects:
         raise ValueError("No seleccionaste ninguna región.")
 
+    img = plt.imread(path)
     clases = defaultdict(list)
 
     for i, r in enumerate(rects, start=1):
@@ -37,7 +40,7 @@ def classes_by_image():
 
         n = _pedir_int(f"Cantidad de puntos para la clase '{nombre}': ", min_val=1)
 
-        puntos = generate_points(r, n)
+        puntos = generate_points(r, n, img)
         clases[nombre].extend(puntos)
 
     return clases, path
@@ -175,12 +178,21 @@ def go_centroid_classifier():
             break
         elif modo == "2":
             reps_dict, image_path = classes_by_image()
-            clusters = compute_clusters_from_reps(reps_dict)
+            clusters = compute_clusters_from_reps(defaultdict(list, {
+                k: [t[-3:] for t in v[2:]]   # v[2:] quita 2 primeros puntos; t[-3:] deja (r,g,b)
+                for k, v in reps_dict.items()
+            }))
+
+            plot_clusters = compute_clusters_from_reps(defaultdict(list, {
+                k: [t[:2] for t in v[:2]]   # t[:2] => (x, y)
+                for k, v in reps_dict.items()
+            })) 
 
             img = plt.imread(image_path)
             h, w = img.shape[:2]
 
             boundaries = np.array([[0, w - 1], [0, h - 1]], dtype=float)
+            boundaries_rgb = IMAGE_BOUNDS
             dist_names = list_distance_functions()
             break
         else :
@@ -221,12 +233,19 @@ def go_centroid_classifier():
             print("Entrada no válida:", e)
             continue
 
-        new_point = np.array(coords)
+        # coords = (x, y)
+        x, y = coords
+
+        r, g, b = get_rgb_at(img, x, y)   # usa la función helper que te pasé
+        new_point = (float(r), float(g), float(b))
+        new_point_plot = (x, y)  
 
         clf = CentroidClassifier(distance=getattr(dist, chosen_name))
-        clf.boundaries = boundaries
         clf.fit_from_clusters(clusters.values())
         label = clf.predict_point(new_point)
+
+        clf1 = CentroidClassifier(distance=getattr(dist, chosen_name))
+        clf1.fit_from_clusters(plot_clusters.values())
 
         if chosen_name == "probability_gaussian":
             pdfs = np.array([
@@ -246,14 +265,15 @@ def go_centroid_classifier():
         print(f"Predicción para {coords} -> {label}")
 
         plot_clusters_and_point(
-            clusters,
-            new_point=new_point,
+            plot_clusters,
+            new_point=new_point_plot,
             new_label=label,
             title_suffix=f"(dist: {chosen_name})",
             image_path=image_path
         )
 
         clusters[label].add_representative(new_point)
+        plot_clusters[label].add_representative(new_point_plot)
 
         if input("\n¿Clasificar otro punto? [s/N]: ").strip().lower() not in ("s", "si", "y", "yes"):
             print("\nFin.")
