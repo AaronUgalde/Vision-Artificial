@@ -31,4 +31,11 @@ class CentroidClassifier:
 
         reps_arrays = [np.array(c.representatives) for c in self.clusters]
         distances = [self.distance(p, c.centroid, reps) for c, reps in zip(self.clusters, reps_arrays)]
-        return self.clusters[int(np.argmin(distances))].label
+        predicted = None
+
+        if self.distance.__name__ == 'probability_gaussian':
+            predicted = int(np.argmax(distances))
+        else:
+            predicted = int(np.argmin(distances))
+
+        return self.clusters[predicted].label

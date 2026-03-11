@@ -1,17 +1,16 @@
 import csv
-from collections import defaultdict
-import inspect
-
-import matplotlib.pyplot as plt
-import numpy as np
-
-from Cluster import Cluster
-from CentroidClassifier import CentroidClassifier
-from random_csv import generar_csv_clusters_por_clase
 import dist
+import numpy as np
+import inspect
+import matplotlib.pyplot as plt
+
+from Cluster            import Cluster
+from collections        import defaultdict
+from CentroidClassifier import CentroidClassifier
+from random_csv         import generar_csv_clusters_por_clase
+from image_selector     import select_rectangles, generate_points
 
 BOUNDARIES = np.array([[-100, 100], [-100, 100]], dtype=float)  # shape (D, 2)
-
 
 def list_distance_functions():
     names = [
@@ -22,6 +21,26 @@ def list_distance_functions():
     ]
     return sorted(names, key=lambda x: (0 if x == "euclidean" else 1, x))
 
+def classes_by_image():
+    path = "data_info/img/" + (input("Ruta de la imagen [enter para 'beach.jsp']: ").strip() or "beach.jpg")
+    rects = select_rectangles(path)
+
+    if not rects:
+        raise ValueError("No seleccionaste ninguna región.")
+
+    clases = defaultdict(list)
+
+    for i, r in enumerate(rects, start=1):
+        nombre = input(f"Nombre de la clase {i}: ").strip()
+        if not nombre:
+            nombre = f"clase_{i}"
+
+        n = _pedir_int(f"Cantidad de puntos para la clase '{nombre}': ", min_val=1)
+
+        puntos = generate_points(r, n)
+        clases[nombre].extend(puntos)
+
+    return clases, path
 
 def read_representatives_from_csv(path):
     reps = defaultdict(list)
@@ -43,20 +62,24 @@ def read_representatives_from_csv(path):
             reps[label].append(np.array(coords))
     return reps
 
-
 def compute_clusters_from_reps(reps_dict):
     return {label: Cluster(label=label, representatives=reps) for label, reps in reps_dict.items()}
 
-
-def plot_clusters_and_point(clusters, new_point=None, new_label=None, title_suffix=""):
+def plot_clusters_and_point(clusters, new_point=None, new_label=None, title_suffix="", image_path=None):
     cmap = plt.get_cmap("tab10")
     color_map = {lab: cmap(i % 10) for i, lab in enumerate(clusters)}
 
     plt.figure(figsize=(8, 6))
 
+    if image_path is not None:
+        img = plt.imread(image_path)
+        h, w = img.shape[:2]
+        plt.imshow(img, extent=[0, w - 1, h - 1, 0])
+
     for c in clusters.values():
         arr = np.array(c.representatives)
         plt.scatter(arr[:, 0], arr[:, 1], label=f"Reps {c.label}", alpha=0.6, s=50, color=color_map[c.label])
+
         cx, cy = c.centroid[:2]
         plt.scatter(cx, cy, marker="X", s=200, edgecolor="k", label=f"Centroid {c.label}", color=color_map[c.label])
         plt.text(cx, cy, f" {c.label}", fontsize=10, fontweight="bold", verticalalignment="center")
@@ -72,7 +95,6 @@ def plot_clusters_and_point(clusters, new_point=None, new_label=None, title_suff
     plt.ylabel("y")
     plt.legend()
     plt.grid(True)
-    plt.axis("equal")
     plt.tight_layout()
     plt.show()
 
@@ -114,36 +136,55 @@ def _pedir_dispersion(msg: str) -> tuple[float, float]:
         except ValueError as e:
             print(e)
 
-def main():
+def go_centroid_classifier():
+
     print("\nDemo interactivo CentroidClassifier\n")
-    path = "data_info/" + (input("Ruta al CSV de representantes [enter para 'reps.csv']: ").strip() or "reps.csv")
 
-    if bool(input("\n¿Actualizar datos? [s/N]: ").strip().lower() in ("s", "si", "y", "yes")):
-        num_clases = _pedir_int("\n¿Cuántas clases quieres?: ", min_val=1)
-        centros_por_clase = []
-        reps_por_clase = []
-        disp_por_clase = []
+    while True:
+        modo = input("Modo de entrada (1=CSV, 2=Imagen): ")
 
-        for i in range(num_clases):
-            cx, cy = _pedir_par(f"\nClase {i}: Centro: ")
-            reps = _pedir_int(f"Clase {i}: ¿Cuántos representantes?: ", min_val=1)
-            dx, dy = _pedir_dispersion(f"Clase {i}: Dispersión: ")
+        if modo == "1":
+            path = "data_info/" + (input("Ruta al CSV de representantes [enter para 'reps.csv']: ").strip() or "reps.csv")
+            if bool(input("\n¿Actualizar datos? [s/N]: ").strip().lower() in ("s", "si", "y", "yes")):
+                num_clases = _pedir_int("\n¿Cuántas clases quieres?: ", min_val=1)
+                centros_por_clase = []
+                reps_por_clase = []
+                disp_por_clase = []
 
-            centros_por_clase.append((cx, cy))
-            reps_por_clase.append(reps)
-            disp_por_clase.append((dx, dy))
+                for i in range(num_clases):
+                    cx, cy = _pedir_par(f"\nClase {i}: Centro: ")
+                    reps = _pedir_int(f"Clase {i}: ¿Cuántos representantes?: ", min_val=1)
+                    dx, dy = _pedir_dispersion(f"Clase {i}: Dispersión: ")
 
-        generar_csv_clusters_por_clase(
-            centros_por_clase=centros_por_clase,
-            reps_por_clase=reps_por_clase,
-            disp_por_clase=disp_por_clase,
-            archivo_csv=path,
-        )
+                    centros_por_clase.append((cx, cy))
+                    reps_por_clase.append(reps)
+                    disp_por_clase.append((dx, dy))
 
-        print(f"\n{path} actualizado con {num_clases} clases.")
+                generar_csv_clusters_por_clase(
+                    centros_por_clase=centros_por_clase,
+                    reps_por_clase=reps_por_clase,
+                    disp_por_clase=disp_por_clase,
+                    archivo_csv=path,
+                )
+                print(f"\n{path} actualizado con {num_clases} clases.")
 
-    clusters = compute_clusters_from_reps(read_representatives_from_csv(path))
-    dist_names = list_distance_functions()
+            clusters = compute_clusters_from_reps(read_representatives_from_csv(path))
+            boundaries = BOUNDARIES
+            image_path = None
+            dist_names = list_distance_functions()
+            break
+        elif modo == "2":
+            reps_dict, image_path = classes_by_image()
+            clusters = compute_clusters_from_reps(reps_dict)
+
+            img = plt.imread(image_path)
+            h, w = img.shape[:2]
+
+            boundaries = np.array([[0, w - 1], [0, h - 1]], dtype=float)
+            dist_names = list_distance_functions()
+            break
+        else :
+            print("Opción inválida.")  
 
     while True:
         # Calcular/mostrar centroides
@@ -183,7 +224,7 @@ def main():
         new_point = np.array(coords)
 
         clf = CentroidClassifier(distance=getattr(dist, chosen_name))
-        clf.boundaries = BOUNDARIES
+        clf.boundaries = boundaries
         clf.fit_from_clusters(clusters.values())
         label = clf.predict_point(new_point)
 
@@ -201,17 +242,23 @@ def main():
                 print("\nProbabilidades normalizadas:")
                 for c, p in sorted(zip(clf.clusters, probs), key=lambda t: t[1], reverse=True):
                     print(f"  Clase {c.label}: {p*100:.2f}%")
-        else:
-            print(f"Predicción para {coords} -> {label}")
+        
+        print(f"Predicción para {coords} -> {label}")
 
-        plot_clusters_and_point(clusters, new_point=new_point, new_label=label, title_suffix=f"(dist: {chosen_name})")
+        plot_clusters_and_point(
+            clusters,
+            new_point=new_point,
+            new_label=label,
+            title_suffix=f"(dist: {chosen_name})",
+            image_path=image_path
+        )
 
         clusters[label].add_representative(new_point)
 
         if input("\n¿Clasificar otro punto? [s/N]: ").strip().lower() not in ("s", "si", "y", "yes"):
-            print("Fin.")
+            print("\nFin.")
             break
 
 
 if __name__ == "__main__":
-    main()
+    go_centroid_classifier()
