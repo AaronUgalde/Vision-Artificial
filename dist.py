@@ -48,7 +48,4 @@ def probability_gaussian(x: np.ndarray, mu: np.ndarray, points: np.ndarray) -> f
 
     # pdf = 1 / ((2π)^(d/2) * |Σ|^(1/2)) * exp(-1/2 * quad)
     denom = (2.0 * np.pi) ** (d / 2.0) * np.exp(0.5 * logdet)
-    
-    pdf = float(np.exp(-0.5 * quad) / denom)
-    eps = 1e-12
-    return 1.0 / (pdf + eps)
+    return float(np.exp(-0.5 * quad) / denom)

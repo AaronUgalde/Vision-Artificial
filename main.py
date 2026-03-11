@@ -187,8 +187,6 @@ def main():
         clf.fit_from_clusters(clusters.values())
         label = clf.predict_point(new_point)
 
-        print(f"Predicción para {coords} -> {label}")
-
         if chosen_name == "probability_gaussian":
             pdfs = np.array([
                 dist.probability_gaussian(new_point, c.centroid, np.array(c.representatives))
@@ -203,6 +201,8 @@ def main():
                 print("\nProbabilidades normalizadas:")
                 for c, p in sorted(zip(clf.clusters, probs), key=lambda t: t[1], reverse=True):
                     print(f"  Clase {c.label}: {p*100:.2f}%")
+        else:
+            print(f"Predicción para {coords} -> {label}")
 
         plot_clusters_and_point(clusters, new_point=new_point, new_label=label, title_suffix=f"(dist: {chosen_name})")
 
