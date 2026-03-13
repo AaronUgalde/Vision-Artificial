@@ -178,8 +178,6 @@ def generate_points(rect, n_points, img):
         x = random.randint(xa, xb)
         y = random.randint(ya, yb)
         r, g, b = get_rgb_at(img, x, y)
-        points.append((x, y, r, g, b))
-
-        print(points)
+        points.append(np.array([x, y, r, g, b]))
 
     return points

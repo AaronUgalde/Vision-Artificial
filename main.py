@@ -42,7 +42,6 @@ def classes_by_image():
 
         puntos = generate_points(r, n, img)
         clases[nombre].extend(puntos)
-
     return clases, path
 
 def read_representatives_from_csv(path):
@@ -179,12 +178,12 @@ def go_centroid_classifier():
         elif modo == "2":
             reps_dict, image_path = classes_by_image()
             clusters = compute_clusters_from_reps(defaultdict(list, {
-                k: [t[-3:] for t in v[2:]]   # v[2:] quita 2 primeros puntos; t[-3:] deja (r,g,b)
+                k: [t[-3:] for t in v]     # 100 puntos, solo (r,g,b)
                 for k, v in reps_dict.items()
             }))
 
             plot_clusters = compute_clusters_from_reps(defaultdict(list, {
-                k: [t[:2] for t in v[:2]]   # t[:2] => (x, y)
+                k: [t[:2] for t in v]      # 100 puntos, solo (x,y)
                 for k, v in reps_dict.items()
             })) 
 
@@ -233,19 +232,26 @@ def go_centroid_classifier():
             print("Entrada no válida:", e)
             continue
 
-        # coords = (x, y)
-        x, y = coords
+        if modo == "1":
+            new_point = np.array(coords)
 
-        r, g, b = get_rgb_at(img, x, y)   # usa la función helper que te pasé
-        new_point = (float(r), float(g), float(b))
-        new_point_plot = (x, y)  
+            clf = CentroidClassifier(distance=getattr(dist, chosen_name))
+            clf.boundaries = BOUNDARIES
+            clf.fit_from_clusters(clusters.values())
+            label = clf.predict_point(new_point)
 
-        clf = CentroidClassifier(distance=getattr(dist, chosen_name))
-        clf.fit_from_clusters(clusters.values())
-        label = clf.predict_point(new_point)
+        elif modo == "2":
+            x, y = coords
+            r, g, b = get_rgb_at(img, x, y)   # usa la función helper que te pasé
+            new_point = np.array([float(r), float(g), float(b)])
+            new_point_plot = np.array(coords)  
 
-        clf1 = CentroidClassifier(distance=getattr(dist, chosen_name))
-        clf1.fit_from_clusters(plot_clusters.values())
+            clf = CentroidClassifier(distance=getattr(dist, chosen_name))
+            clf.fit_from_clusters(clusters.values())
+            label = clf.predict_point(new_point)
+
+            clf1 = CentroidClassifier(distance=getattr(dist, chosen_name))
+            clf1.fit_from_clusters(plot_clusters.values())
 
         if chosen_name == "probability_gaussian":
             pdfs = np.array([
@@ -264,16 +270,19 @@ def go_centroid_classifier():
         
         print(f"Predicción para {coords} -> {label}")
 
-        plot_clusters_and_point(
-            plot_clusters,
-            new_point=new_point_plot,
-            new_label=label,
-            title_suffix=f"(dist: {chosen_name})",
-            image_path=image_path
-        )
+        if modo == "1":
+            plot_clusters_and_point(clusters, new_point=new_point, new_label=label, title_suffix=f"(dist: {chosen_name})")
+        elif modo == "2":
+            plot_clusters_and_point(
+                plot_clusters,
+                new_point=new_point_plot,
+                new_label=label,
+                title_suffix=f"(dist: {chosen_name})",
+                image_path=image_path
+            )
+            plot_clusters[label].add_representative(new_point_plot)
 
         clusters[label].add_representative(new_point)
-        plot_clusters[label].add_representative(new_point_plot)
 
         if input("\n¿Clasificar otro punto? [s/N]: ").strip().lower() not in ("s", "si", "y", "yes"):
             print("\nFin.")
