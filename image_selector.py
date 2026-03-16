@@ -133,3 +133,20 @@ def generate_points(rect, n_points):
         points.append(np.array([float(x), float(y)]))
 
     return points
+
+
+def generate_image_samples(img, rect, n_points):
+    samples = []
+
+    for point in generate_points(rect, n_points):
+        x, y = point.astype(int)
+        rgb = np.asarray(img[y, x], dtype=float)
+        if rgb.ndim == 0:
+            rgb = np.array([float(rgb)])
+        rgb = rgb[:3]
+        samples.append({
+            "position": point.astype(float),
+            "rgb": rgb.astype(float)
+        })
+
+    return samples
