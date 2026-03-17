@@ -6,6 +6,18 @@ from Cluster import Cluster
 from CentroidClassifier import CentroidClassifier
 import dist
 
+"""
+R G B |
+-----------
+0 0 0 | Negro
+0 0 1 | Azul
+0 1 0 | Verde
+0 1 1 | Cian
+1 0 0 | Rojo
+1 0 1 | Magenta
+1 1 0 | Amarillo
+1 1 1 | Negro
+"""
 
 def build_clusters():
     rgb = Cluster(label="RGB")
