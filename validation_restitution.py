@@ -65,6 +65,31 @@ def plot_confusion_matrix(matrix, labels, title="Matriz de Confusión - Restituc
     return fig
 
 
+def _plot_class_accuracies(class_accuracy: dict, method_name: str, show=True):
+    """Gráfica de barras con el accuracy por clase."""
+    labels = list(class_accuracy.keys())
+    values = [class_accuracy[l] * 100 for l in labels]
+    colors = plt.cm.tab10.colors[:len(labels)]
+
+    fig, ax = plt.subplots(figsize=(max(6, len(labels) * 1.5), 5))
+    bars = ax.bar(labels, values, color=colors, edgecolor="black", width=0.5, zorder=3)
+    for bar, val in zip(bars, values):
+        ax.text(bar.get_x() + bar.get_width() / 2,
+                bar.get_height() + 0.8,
+                f"{val:.2f}%",
+                ha="center", va="bottom", fontsize=11, fontweight="bold")
+    ax.set_ylim(0, 115)
+    ax.set_ylabel("Accuracy (%)", fontsize=12)
+    ax.set_xlabel("Clase", fontsize=12)
+    ax.set_title(f"Accuracy por Clase — {method_name}", fontsize=13, fontweight="bold")
+    ax.yaxis.grid(True, linestyle="--", alpha=0.7, zorder=0)
+    ax.axhline(100, color="gray", linestyle=":", linewidth=1)
+    plt.tight_layout()
+    if show:
+        plt.show()
+    return fig
+
+
 def run_restitution(data: dict, distance_fn, show_plot=True):
     """
     Ejecuta la validación por Restitución.
@@ -88,15 +113,28 @@ def run_restitution(data: dict, distance_fn, show_plot=True):
     correct = sum(t == p for t, p in zip(y_true, y_pred))
     accuracy = correct / len(y_true) if y_true else 0.0
 
-    print(f"\n[Restitución] Accuracy: {accuracy*100:.2f}%")
+    # True positives por clase (diagonal de la matriz)
+    true_positives = {labels[i]: int(matrix[i, i]) for i in range(len(labels))}
+
+    # Accuracy por clase (TP / total real de esa clase)
+    class_accuracy = {}
+    for i, lbl in enumerate(labels):
+        total_real = int(matrix[i, :].sum())
+        class_accuracy[lbl] = matrix[i, i] / total_real if total_real > 0 else 0.0
+
+    print(f"\n[Restitución] Accuracy global: {accuracy*100:.2f}%")
     print("Matriz de Confusión:")
     print("Labels:", labels)
     print(matrix)
+    print("True Positives por clase:", true_positives)
+    print("Accuracy por clase:", {k: f"{v*100:.2f}%" for k, v in class_accuracy.items()})
 
     if show_plot:
         plot_confusion_matrix(matrix, labels,
                               title=f"Restitución — Accuracy: {accuracy*100:.2f}%")
-    return accuracy, matrix, labels
+        _plot_class_accuracies(class_accuracy, "Restitución")
+
+    return accuracy, matrix, labels, true_positives, class_accuracy
 
 
 if __name__ == "__main__":
