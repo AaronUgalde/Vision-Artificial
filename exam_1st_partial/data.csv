@@ -1,0 +1,9 @@
+﻿r,g,b,color,clase
+0,0,0,Negro,clase3
+0,0,1,Azul,clase1
+0,1,0,Verde,clase1
+0,1,1,Cian,clase2
+1,0,0,Rojo,clase1
+1,0,1,Magenta,clase2
+1,1,0,Amarillo,clase2
+1,1,1,Blanco,clase3
