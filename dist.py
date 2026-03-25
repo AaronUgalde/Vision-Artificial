@@ -4,11 +4,6 @@ import numpy as np
 def euclidean(a: np.ndarray, b: np.ndarray, points: np.ndarray) -> float:
     return float(np.linalg.norm(a - b))
 
-
-def manhattan(a: np.ndarray, b: np.ndarray, points: np.ndarray) -> float:
-    return float(np.sum(np.abs(a - b)))
-
-
 def mahalanobis_distance_matrix(x: np.ndarray, mu: np.ndarray, points: np.ndarray) -> float:
     """
     d = sqrt((x - mu)^T * Sigma^-1 * (x - mu))

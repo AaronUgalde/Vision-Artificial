@@ -29,25 +29,23 @@ def run_50_50(data: dict, distance_fn, n_iterations: int = 20, show_plot=True):
     n_labels = len(labels)
 
     # Aplanar todos los puntos con etiqueta
-    all_samples = []
-    for label, samples in data.items():
-        for s in samples:
-            all_samples.append((label, s))
-
-    total = len(all_samples)
-    if total < 4:
-        raise ValueError("Se necesitan al menos 4 puntos para 50-50.")
 
     accumulated_matrix = np.zeros((n_labels, n_labels), dtype=float)
     accuracies = []
 
-    for iteration in range(n_iterations):
-        shuffled = all_samples.copy()
-        random.shuffle(shuffled)
+    if any(len(s) < 2 for s in data.values()):
+        raise ValueError("Cada clase necesita al menos 2 puntos para 50-50.")
 
-        split = total // 2
-        train_pool = shuffled[:split]
-        test_pool = shuffled[split:]
+    for iteration in range(n_iterations):
+        train_pool, test_pool = [], []
+        for lbl, samples in data.items():
+            shuffled_class = samples.copy()
+            random.shuffle(shuffled_class)
+            mid = len(shuffled_class) // 2
+            for s in shuffled_class[:mid]:
+                train_pool.append((lbl, s))
+            for s in shuffled_class[mid:]:
+                test_pool.append((lbl, s))
 
         train_data = defaultdict(list)
         for lbl, s in train_pool:
