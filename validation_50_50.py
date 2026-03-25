@@ -15,7 +15,8 @@ import dist
 from CentroidClassifier import CentroidClassifier
 from Cluster import Cluster
 from validation_restitution import (
-    build_clusters, compute_confusion_matrix, plot_confusion_matrix, list_distance_functions
+    build_clusters, compute_confusion_matrix, plot_confusion_matrix,
+    list_distance_functions, _plot_class_accuracies
 )
 
 
@@ -28,25 +29,23 @@ def run_50_50(data: dict, distance_fn, n_iterations: int = 20, show_plot=True):
     n_labels = len(labels)
 
     # Aplanar todos los puntos con etiqueta
-    all_samples = []
-    for label, samples in data.items():
-        for s in samples:
-            all_samples.append((label, s))
-
-    total = len(all_samples)
-    if total < 4:
-        raise ValueError("Se necesitan al menos 4 puntos para 50-50.")
 
     accumulated_matrix = np.zeros((n_labels, n_labels), dtype=float)
     accuracies = []
 
-    for iteration in range(n_iterations):
-        shuffled = all_samples.copy()
-        random.shuffle(shuffled)
+    if any(len(s) < 2 for s in data.values()):
+        raise ValueError("Cada clase necesita al menos 2 puntos para 50-50.")
 
-        split = total // 2
-        train_pool = shuffled[:split]
-        test_pool = shuffled[split:]
+    for iteration in range(n_iterations):
+        train_pool, test_pool = [], []
+        for lbl, samples in data.items():
+            shuffled_class = samples.copy()
+            random.shuffle(shuffled_class)
+            mid = len(shuffled_class) // 2
+            for s in shuffled_class[:mid]:
+                train_pool.append((lbl, s))
+            for s in shuffled_class[mid:]:
+                test_pool.append((lbl, s))
 
         train_data = defaultdict(list)
         for lbl, s in train_pool:
@@ -76,7 +75,12 @@ def run_50_50(data: dict, distance_fn, n_iterations: int = 20, show_plot=True):
         correct = sum(t == p for t, p in zip(y_true, y_pred))
         acc = correct / len(y_true) if y_true else 0.0
         accuracies.append(acc)
-        print(f"  Iter {iteration+1:2d}/{n_iterations}: accuracy = {acc*100:.2f}%")
+
+        # Mostrar matriz de cada iteración en consola (requerimiento 50-50)
+        print(f"\n  --- Iteración {iteration+1}/{n_iterations} --- accuracy = {acc*100:.2f}%")
+        print(f"  Labels: {labels}")
+        print(f"  Matriz de Confusión:")
+        print(mat)
 
     if not accuracies:
         raise RuntimeError("Ninguna iteración completó exitosamente.")
@@ -85,16 +89,28 @@ def run_50_50(data: dict, distance_fn, n_iterations: int = 20, show_plot=True):
     avg_accuracy = float(np.mean(accuracies))
     std_accuracy = float(np.std(accuracies))
 
+    # True positives promedio por clase (diagonal de la matriz promedio)
+    true_positives = {labels[i]: float(avg_matrix[i, i]) for i in range(len(labels))}
+
+    # Accuracy promedio por clase
+    class_accuracy = {}
+    for i, lbl in enumerate(labels):
+        total_real = float(avg_matrix[i, :].sum())
+        class_accuracy[lbl] = avg_matrix[i, i] / total_real if total_real > 0 else 0.0
+
     print(f"\n[50-50] Accuracy promedio: {avg_accuracy*100:.2f}% ± {std_accuracy*100:.2f}%")
     print("Matriz de Confusión Promedio:")
     print("Labels:", labels)
     print(np.round(avg_matrix, 2))
+    print("True Positives promedio por clase:", {k: f"{v:.2f}" for k, v in true_positives.items()})
+    print("Accuracy por clase:", {k: f"{v*100:.2f}%" for k, v in class_accuracy.items()})
 
     if show_plot:
         _plot_avg_confusion(avg_matrix, labels, avg_accuracy, std_accuracy)
         _plot_accuracy_per_iteration(accuracies)
+        _plot_class_accuracies(class_accuracy, "50-50 (promedio)")
 
-    return avg_accuracy, avg_matrix, labels
+    return avg_accuracy, avg_matrix, labels, true_positives, class_accuracy
 
 
 def _plot_avg_confusion(matrix, labels, avg_acc, std_acc, show=True):
